@@ -1,0 +1,110 @@
+import numpy as np
+import random
+
+#此部分为生成迷宫，用矩阵表示，1表示不能通过，0表示可以通过
+maze=np.zeros([7,7])
+for i in range(0,6):
+     maze[i][2]=1;
+     maze[6-i][5]=1;
+maze[1][1]=1
+maze[3][0]=1
+maze[5][1]=1
+maze[2][5]=0
+maze[3][5]=0
+maze[4][5]=0
+maze[3][6]=1
+
+
+def coder(a):
+    if a == 0:
+        return np.array([1, 0])
+    elif a == 1:
+        return np.array([-1, 0])
+    elif a == 2:
+        return np.array([0, 1])
+    elif a == 3:
+        return np.array([0, -1])
+
+class Qnet():
+    def __init__(self,maze):
+        self.Maze=maze;
+        [self.m, self.n] = self.Maze.shape;
+        self.Q=np.zeros([self.m,self.n,4],dtype=float);
+        self.rate=0.1;
+        self.gamma=0.8;
+        self.kesi=0.05;
+
+
+    def learn(self,s,a,r,s_):
+        s_x=s[0];
+        s_y=s[1];
+        s_x_=s_[0];
+        s_y_=s_[1];
+        max_Q=0;
+        a_=0;
+        # print(s,s_)
+        if s_x_!=self.m-1 or s_y_!=self.n-1:
+            for i in range(0, 4):
+                if self.Q[s_x_, s_y_, i] > max_Q:
+                    max_Q = self.Q[s_x_, s_y_, i];
+                    a_ = i;
+            self.Q[s_x,s_y,a]=self.Q[s_x,s_y,a]+self.rate*(r+self.gamma*self.Q[s_x_,s_y_,a_]-self.Q[s_x,s_y,a])
+        else:
+            self.Q[s_x, s_y, a] = self.Q[s_x, s_y, a] + self.rate * (
+                        r  - self.Q[s_x, s_y, a])
+    def choose_action(self,s):
+        np_s=np.array(s)
+        available_a=[];
+        for a in range(0,4):
+            if np_s[0]+coder(a)[0]>=0 and np_s[0]+coder(a)[0]<self.m and np_s[1]+coder(a)[1]>=0 and np_s[1]+coder(a)[1]<self.n:
+                if self.Maze[np_s[0]+coder(a)[0],np_s[1]+coder(a)[1]]!=1:
+                    available_a.append(a)
+
+        max_Q=0;
+        max_a=[];
+        for a in available_a:
+            if self.Q[s[0],s[1],a]>=max_Q:
+                max_Q=self.Q[s[0],s[1],a]
+        for a in available_a:
+            if self.Q[s[0],s[1],a]>=max_Q:
+                max_a.append(a)
+        rand=random.random()
+
+        if rand>self.kesi:
+
+            return max_a[random.randint(0,len(max_a)-1)]
+
+        else:
+            return available_a[random.randint(0,len(available_a)-1)]
+
+    def get_Q(self,s,a):
+        return self.Q[s[0],s[1],a]
+
+
+
+
+qnet=Qnet(maze)
+initial_s=[0,0];
+end_s=list(maze.shape);
+max_epoch=2000;
+epoch=0;
+while(epoch<max_epoch):
+    s_current=initial_s.copy();
+    print(epoch,'\n')
+    while(1):
+        a=qnet.choose_action(s_current);
+        s_next=list(np.array(s_current)+coder(a));
+        print(s_current,a,s_next)
+
+        if s_next[0]==end_s[0]-1 and s_next[1]==end_s[1]-1:
+            r=1;
+            qnet.learn(s_current, a, r, s_next)
+            epoch+=1;
+            break;
+        else:
+            r=0;
+            qnet.learn(s_current, a, r, s_next)
+            print(qnet.get_Q(s_current, a))
+            s_current=s_next.copy();
+            continue;
+
